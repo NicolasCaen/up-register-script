@@ -170,6 +170,15 @@ class UpRegisterScript {
         if (!get_option('up_register_scripts')) {
             update_option('up_register_scripts', $this->default_scripts);
         }
+
+        // Initialiser et créer le dossier pour les scripts
+        $options = get_option('up_register_script_params', [
+            'auto_load' => true,
+            'download_cdn' => false,
+            'local_path' => '/wp-content/uploads/scripts/'
+        ]);
+
+        $this->createScriptsDirectory($options['local_path']);
     }
 
     public function addAdminMenu() {
@@ -209,11 +218,60 @@ class UpRegisterScript {
     }
 
     public function sanitizeParams($input) {
-        return [
+        $sanitized = [
             'auto_load' => isset($input['auto_load']),
             'download_cdn' => isset($input['download_cdn']),
             'local_path' => sanitize_text_field(trailingslashit($input['local_path']))
         ];
+
+        // Créer le nouveau dossier si le chemin a changé
+        $old_options = get_option('up_register_script_params');
+        if ($old_options['local_path'] !== $sanitized['local_path']) {
+            $this->createScriptsDirectory($sanitized['local_path']);
+        }
+
+        return $sanitized;
+    }
+
+    private function createScriptsDirectory($path) {
+        $full_path = untrailingslashit(ABSPATH) . $path;
+        
+        // Vérifier si le dossier existe
+        if (!file_exists($full_path)) {
+            // Créer le dossier avec les bonnes permissions
+            $created = wp_mkdir_p($full_path);
+            
+            // Ajouter un fichier index.php pour la sécurité
+            if ($created) {
+                $index_file = $full_path . '/index.php';
+                if (!file_exists($index_file)) {
+                    file_put_contents($index_file, "<?php\n// Silence is golden.");
+                }
+                
+                // Ajouter un .htaccess pour permettre l'accès aux fichiers
+                $htaccess_file = $full_path . '/.htaccess';
+                if (!file_exists($htaccess_file)) {
+                    $htaccess_content = "Allow from all\n";
+                    $htaccess_content .= "<FilesMatch \"\.(js|css)$\">\n";
+                    $htaccess_content .= "    Order Allow,Deny\n";
+                    $htaccess_content .= "    Allow from all\n";
+                    $htaccess_content .= "</FilesMatch>";
+                    file_put_contents($htaccess_file, $htaccess_content);
+                }
+            }
+            
+            // Vérifier si la création a échoué
+            if (!$created) {
+                add_settings_error(
+                    'up_register_script_params',
+                    'directory_creation_failed',
+                    sprintf(
+                        __('Impossible de créer le dossier %s. Vérifiez les permissions.', 'up-register-script'),
+                        $path
+                    )
+                );
+            }
+        }
     }
 
     public function registerScripts() {
@@ -224,10 +282,18 @@ class UpRegisterScript {
         $auto_load = isset($options['auto_load']) ? $options['auto_load'] : true;
         
         foreach ($scripts as $script) {
+            // Déterminer la source du script
+            $src = $script['src'];
+            if (!empty($script['local_path']) && $script['is_file']) {
+                $src = "site_url('" . esc_js($script['local_path']) . "')";
+            } else {
+                $src = "'" . esc_js($script['src']) . "'";
+            }
+
             if ($script['type'] === 'js') {
                 wp_register_script(
                     $script['handle'],
-                    $script['src'],
+                    $src,
                     $script['deps'],
                     $script['ver'],
                     $script['in_footer']
@@ -239,7 +305,7 @@ class UpRegisterScript {
             } else {
                 wp_register_style(
                     $script['handle'],
-                    $script['src'],
+                    $src,
                     $script['deps'],
                     $script['ver']
                 );
@@ -706,14 +772,14 @@ class UpRegisterScript {
         if (!empty($css_assets)) {
             $php .= "\n    // Register Styles\n";
             foreach ($css_assets as $style) {
+                $src = !empty($style['local_path']) && $style['is_file'] 
+                    ? "site_url('" . esc_js($style['local_path']) . "')"
+                    : "'" . esc_js($style['src']) . "'";
+                
                 $deps = implode("', '", $style['deps']);
                 $deps = !empty($deps) ? "array('" . $deps . "')" : "array()";
                 
-                if (isset($style['is_file']) && $style['is_file']) {
-                    $php .= "    wp_register_style('{$style['handle']}', get_stylesheet_directory_uri() . '{$style['local_path']}', {$deps}, '{$style['ver']}');\n";
-                } else {
-                    $php .= "    wp_register_style('{$style['handle']}', '{$style['src']}', {$deps}, '{$style['ver']}');\n";
-                }
+                $php .= "    wp_register_style('{$style['handle']}', {$src}, {$deps}, '{$style['ver']}');\n";
             }
         }
         
@@ -721,14 +787,14 @@ class UpRegisterScript {
         if (!empty($js_assets)) {
             $php .= "\n    // Register Scripts\n";
             foreach ($js_assets as $script) {
+                $src = !empty($script['local_path']) && $script['is_file'] 
+                    ? "site_url('" . esc_js($script['local_path']) . "')"
+                    : "'" . esc_js($script['src']) . "'";
+                
                 $deps = implode("', '", $script['deps']);
                 $deps = !empty($deps) ? "array('" . $deps . "')" : "array()";
                 
-                if (isset($script['is_file']) && $script['is_file']) {
-                    $php .= "    wp_register_script('{$script['handle']}', get_stylesheet_directory_uri() . '{$script['local_path']}', {$deps}, '{$script['ver']}', " . ($script['in_footer'] ? 'true' : 'false') . ");\n";
-                } else {
-                    $php .= "    wp_register_script('{$script['handle']}', '{$script['src']}', {$deps}, '{$script['ver']}', " . ($script['in_footer'] ? 'true' : 'false') . ");\n";
-                }
+                $php .= "    wp_register_script('{$script['handle']}', {$src}, {$deps}, '{$script['ver']}', " . ($script['in_footer'] ? 'true' : 'false') . ");\n";
             }
         }
         
@@ -882,6 +948,13 @@ class UpRegisterScript {
         }
 
         $sanitized = [];
+        $options = get_option('up_register_script_params', [
+            'auto_load' => true,
+            'download_cdn' => false,
+            'local_path' => '/wp-content/uploads/scripts/'
+        ]);
+        
+        $should_download = !empty($options['download_cdn']);
         
         foreach ($input as $key => $script) {
             // Vérifier les champs requis
@@ -890,26 +963,39 @@ class UpRegisterScript {
             }
 
             // Gérer les dépendances
-            $deps = [];
-            if (isset($script['deps'])) {
-                if (is_array($script['deps'])) {
-                    $deps = $script['deps'];
-                } elseif (is_string($script['deps']) && !empty($script['deps'])) {
-                    $deps = array_map('trim', explode(',', $script['deps']));
+            $deps = isset($script['deps']) ? $script['deps'] : '';
+            if (is_array($deps)) {
+                $deps = implode(',', $deps);
+            }
+            
+            $src = esc_url_raw($script['src']);
+            $local_path_file = isset($script['local_path']) ? $script['local_path'] : '';
+            $is_file = isset($script['is_file']) ? (bool)$script['is_file'] : false;
+            
+            // Télécharger le fichier si c'est une URL externe et que l'option est activée
+            if ($should_download && !empty($src) && !$is_file && $this->isExternalUrl($src)) {
+                // S'assurer que le dossier existe
+                $this->createScriptsDirectory($options['local_path']);
+                
+                // Tentative de téléchargement
+                $downloaded_file = $this->downloadAndSaveFile($src, $script['handle'], $script['type'], $options['local_path']);
+                
+                if ($downloaded_file) {
+                    $local_path_file = $downloaded_file;
+                    $is_file = true;
+                    $src = ''; // Vider l'URL source puisqu'on utilise le fichier local
                 }
             }
 
             $sanitized[$key] = [
                 'handle' => sanitize_text_field($script['handle']),
-                'src' => esc_url_raw($script['src']),
+                'src' => $src,
                 'ver' => sanitize_text_field($script['ver']),
-                'deps' => array_filter(array_map('sanitize_text_field', $deps)),
+                'deps' => !empty($deps) ? array_map('sanitize_text_field', explode(',', $deps)) : [],
                 'in_footer' => isset($script['in_footer']) ? true : false,
-                'is_file' => isset($script['is_file']) ? (bool)$script['is_file'] : false,
+                'is_file' => $is_file,
                 'type' => isset($script['type']) ? sanitize_text_field($script['type']) : 'js',
-                'local_path' => isset($script['local_path']) ? 
-                    sanitize_text_field($script['local_path']) : 
-                    '',
+                'local_path' => $local_path_file,
                 'load_front' => isset($script['load_front']) ? true : false,
                 'load_admin' => isset($script['load_admin']) ? true : false,
                 'load_editor' => isset($script['load_editor']) ? true : false
@@ -917,6 +1003,65 @@ class UpRegisterScript {
         }
 
         return $sanitized;
+    }
+
+    private function downloadAndSaveFile($url, $handle, $type, $local_path) {
+        // Vérifier que l'URL est valide
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        // Créer un nom de fichier unique basé sur le handle
+        $extension = $type === 'js' ? '.js' : '.css';
+        $filename = sanitize_file_name($handle . $extension);
+        
+        // Chemin complet du fichier
+        $upload_path = untrailingslashit(ABSPATH) . $local_path;
+        $file_path = $upload_path . $filename;
+        
+        // Télécharger le fichier
+        $response = wp_safe_remote_get($url, [
+            'timeout' => 60,
+            'sslverify' => false
+        ]);
+        
+        if (is_wp_error($response)) {
+            error_log('Erreur de téléchargement : ' . $response->get_error_message());
+            return false;
+        }
+        
+        $content = wp_remote_retrieve_body($response);
+        
+        if (empty($content)) {
+            error_log('Contenu vide pour : ' . $url);
+            return false;
+        }
+        
+        // Sauvegarder le fichier
+        $saved = file_put_contents($file_path, $content);
+        if ($saved === false) {
+            error_log('Impossible de sauvegarder le fichier : ' . $file_path);
+            return false;
+        }
+        
+        // Retourner le chemin relatif
+        return trailingslashit($local_path) . $filename;
+    }
+
+    private function isExternalUrl($url) {
+        if (empty($url)) return false;
+        
+        $site_url = site_url();
+        $parsed_url = parse_url($url);
+        $parsed_site = parse_url($site_url);
+        
+        // Vérifier si c'est une URL complète
+        if (isset($parsed_url['host'])) {
+            return $parsed_url['host'] !== $parsed_site['host'];
+        }
+        
+        // Pour les URLs relatives ou protocole-relatif
+        return strpos($url, '//') === 0;
     }
 
     public function saveScriptsOrder() {
