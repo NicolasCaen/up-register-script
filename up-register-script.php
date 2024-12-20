@@ -278,17 +278,13 @@ class UpRegisterScript {
         $options = get_option('up_register_script_params');
         $scripts = get_option('up_register_scripts', $this->default_scripts);
         
-        // Si l'auto-load est désactivé, on enregistre seulement les scripts
         $auto_load = isset($options['auto_load']) ? $options['auto_load'] : true;
         
         foreach ($scripts as $script) {
-            // Déterminer la source du script
-            $src = $script['src'];
-            if (!empty($script['local_path']) && $script['is_file']) {
-                $src = "site_url('" . esc_js($script['local_path']) . "')";
-            } else {
-                $src = "'" . esc_js($script['src']) . "'";
-            }
+            // Utiliser le fichier local s'il existe, sinon l'URL d'origine
+            $src = (!empty($script['local_path']) && $script['is_file']) 
+                ? site_url($script['local_path']) 
+                : $script['src'];
 
             if ($script['type'] === 'js') {
                 wp_register_script(
@@ -380,6 +376,7 @@ class UpRegisterScript {
                                 <th>Handle</th>
                                 <th>Source</th>
                                 <th>Type</th>
+                                <th>Style/JS</th>
                                 <th>Version</th>
                                 <th>Dépendances</th>
                                 <th>Position</th>
@@ -402,18 +399,33 @@ class UpRegisterScript {
                                     </td>
                                     <td>
                                         <div class="script-source">
-                                            <input type="text" 
-                                                   class="script-url <?php echo $is_file ? 'hidden' : ''; ?>"
-                                                   name="up_register_scripts[<?php echo esc_attr($key); ?>][src]" 
-                                                   value="<?php echo esc_attr($script['src']); ?>"
-                                                   style="width: 100%;">
+                                            <?php if (!empty($script['local_path']) && $script['is_file']): ?>
+                                                <div class="source-url">
+                                                    <strong>Local:</strong> 
+                                                    <a href="<?php echo esc_url(site_url($script['local_path'])); ?>" target="_blank">
+                                                        <?php echo esc_html(site_url($script['local_path'])); ?>
+                                                    </a>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($script['src'])): ?>
+                                                <div class="source-url <?php echo (!empty($script['local_path']) ? 'original-url' : ''); ?>">
+                                                    <?php if (!empty($script['local_path'])): ?>
+                                                        <strong>Original:</strong> 
+                                                    <?php endif; ?>
+                                                    <input type="text" 
+                                                           class="script-url" 
+                                                           name="up_register_scripts[<?php echo esc_attr($key); ?>][src]" 
+                                                           value="<?php echo esc_attr($script['src']); ?>" 
+                                                           style="width: 100%;">
+                                                </div>
+                                            <?php endif; ?>
                                             <input type="file" 
-                                                   class="script-file <?php echo !$is_file ? 'hidden' : ''; ?>"
-                                                   name="script_file_<?php echo esc_attr($key); ?>"
+                                                   class="script-file hidden" 
+                                                   name="script_file_<?php echo esc_attr($key); ?>" 
                                                    accept=".js,.css">
                                             <input type="hidden" 
-                                                   name="up_register_scripts[<?php echo esc_attr($key); ?>][local_path]"
-                                                   value="<?php echo esc_attr($local_path); ?>">
+                                                   name="up_register_scripts[<?php echo esc_attr($key); ?>][local_path]" 
+                                                   value="<?php echo esc_attr($script['local_path']); ?>">
                                         </div>
                                     </td>
                                     <td>
@@ -457,29 +469,13 @@ class UpRegisterScript {
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <div class="load-options">
-                                            <label>
-                                                <input type="checkbox" 
-                                                       name="up_register_scripts[<?php echo esc_attr($key); ?>][load_front]" 
-                                                       value="1"
-                                                       <?php checked(!empty($script['load_front'])); ?>>
-                                                Front
-                                            </label><br>
-                                            <label>
-                                                <input type="checkbox" 
-                                                       name="up_register_scripts[<?php echo esc_attr($key); ?>][load_admin]" 
-                                                       value="1"
-                                                       <?php checked(!empty($script['load_admin'])); ?>>
-                                                Admin
-                                            </label><br>
-                                            <label>
-                                                <input type="checkbox" 
-                                                       name="up_register_scripts[<?php echo esc_attr($key); ?>][load_editor]" 
-                                                       value="1"
-                                                       <?php checked(!empty($script['load_editor'])); ?>>
-                                                Éditeur
-                                            </label>
-                                        </div>
+                                        <select name="up_register_scripts[<?php echo esc_attr($key); ?>][loading]">
+                                            <option value="none" <?php selected($this->getLoadingType($script), 'none'); ?>>Ne pas charger</option>
+                                            <option value="front" <?php selected($this->getLoadingType($script), 'front'); ?>>Front</option>
+                                            <option value="admin" <?php selected($this->getLoadingType($script), 'admin'); ?>>Admin</option>
+                                            <option value="both" <?php selected($this->getLoadingType($script), 'both'); ?>>Front & Admin</option>
+                                            <option value="editor" <?php selected($this->getLoadingType($script), 'editor'); ?>>Éditeur</option>
+                                        </select>
                                     </td>
                                     <td>
                                         <button type="button" class="button delete-script">
@@ -616,6 +612,73 @@ class UpRegisterScript {
             background: #f0f0f0 !important;
             height: 50px;
         }
+        .script-source .source-url {
+            margin-bottom: 5px;
+        }
+        .script-source .original-url {
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+        .script-source strong {
+            display: inline-block;
+            min-width: 60px;
+            color: #666;
+        }
+        .source-url a {
+            text-decoration: none;
+        }
+        .source-url a:hover {
+            text-decoration: underline;
+        }
+        /* Styles généraux pour les inputs et selects */
+        .scripts-table input[type="text"],
+        .scripts-table select {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Styles spécifiques pour la source */
+        .script-source .source-url {
+            margin-bottom: 5px;
+        }
+        .script-source .original-url {
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+        .script-source strong {
+            display: inline-block;
+            min-width: 60px;
+            color: #666;
+        }
+        .source-url a {
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .source-url a:hover {
+            text-decoration: underline;
+        }
+
+        /* Ajustements pour les colonnes spécifiques */
+        .position-column {
+            text-align: center;
+        }
+        .position-column span {
+            display: inline-block;
+            line-height: 28px;
+            color: #666;
+        }
+
+        /* Ajustements pour les checkboxes */
+        .load-options label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* Exception pour les checkboxes qui ne doivent pas être à 100% */
+        .scripts-table input[type="checkbox"] {
+            width: auto;
+        }
         </style>
 
         <script>
@@ -674,20 +737,13 @@ class UpRegisterScript {
                             </label>
                         </td>
                         <td>
-                            <div class="load-options">
-                                <label>
-                                    <input type="checkbox" name="up_register_scripts[new_${timestamp}][load_front]" value="1">
-                                    Front
-                                </label><br>
-                                <label>
-                                    <input type="checkbox" name="up_register_scripts[new_${timestamp}][load_admin]" value="1">
-                                    Admin
-                                </label><br>
-                                <label>
-                                    <input type="checkbox" name="up_register_scripts[new_${timestamp}][load_editor]" value="1">
-                                    Éditeur
-                                </label>
-                            </div>
+                            <select name="up_register_scripts[new_${timestamp}][loading]">
+                                <option value="none">Ne pas charger</option>
+                                <option value="front">Front</option>
+                                <option value="admin">Admin</option>
+                                <option value="both">Front & Admin</option>
+                                <option value="editor">Éditeur</option>
+                            </select>
                         </td>
                         <td><button type="button" class="button delete-script">Supprimer</button></td>
                     </tr>
@@ -974,19 +1030,18 @@ class UpRegisterScript {
             
             // Télécharger le fichier si c'est une URL externe et que l'option est activée
             if ($should_download && !empty($src) && !$is_file && $this->isExternalUrl($src)) {
-                // S'assurer que le dossier existe
                 $this->createScriptsDirectory($options['local_path']);
-                
-                // Tentative de téléchargement
                 $downloaded_file = $this->downloadAndSaveFile($src, $script['handle'], $script['type'], $options['local_path']);
                 
                 if ($downloaded_file) {
                     $local_path_file = $downloaded_file;
                     $is_file = true;
-                    $src = ''; // Vider l'URL source puisqu'on utilise le fichier local
                 }
             }
 
+            // Gérer le nouveau type de chargement
+            $loading = isset($script['loading']) ? $script['loading'] : 'none';
+            
             $sanitized[$key] = [
                 'handle' => sanitize_text_field($script['handle']),
                 'src' => $src,
@@ -996,9 +1051,9 @@ class UpRegisterScript {
                 'is_file' => $is_file,
                 'type' => isset($script['type']) ? sanitize_text_field($script['type']) : 'js',
                 'local_path' => $local_path_file,
-                'load_front' => isset($script['load_front']) ? true : false,
-                'load_admin' => isset($script['load_admin']) ? true : false,
-                'load_editor' => isset($script['load_editor']) ? true : false
+                'load_front' => in_array($loading, ['front', 'both']),
+                'load_admin' => in_array($loading, ['admin', 'both']),
+                'load_editor' => $loading === 'editor'
             ];
         }
 
@@ -1093,6 +1148,19 @@ class UpRegisterScript {
         }
         
         wp_send_json_success();
+    }
+
+    private function getLoadingType($script) {
+        if (!empty($script['load_front']) && !empty($script['load_admin'])) {
+            return 'both';
+        } elseif (!empty($script['load_front'])) {
+            return 'front';
+        } elseif (!empty($script['load_admin'])) {
+            return 'admin';
+        } elseif (!empty($script['load_editor'])) {
+            return 'editor';
+        }
+        return 'none';
     }
 }
 
