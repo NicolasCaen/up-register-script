@@ -1,1 +1,41 @@
-README.me
+# UP Register Script
+
+Plugin WordPress pour gérer facilement l'enregistrement et la gestion des scripts JavaScript.
+
+## Fonctionnalités
+
+- Interface d'administration pour gérer les scripts
+- Scripts pré-configurés (GSAP, AOS, Slick, Fancybox, DataTables, etc.)
+- Gestion des dépendances entre scripts
+- Ajout/Suppression/Modification de scripts
+- Chargement conditionnel dans le header ou footer
+
+## Scripts pré-configurés
+
+- GSAP (Animation)
+- ScrollTrigger (Extension GSAP)
+- AOS (Animate On Scroll)
+- Slick (Carousel)
+- Fancybox (Lightbox)
+- DataTables (Tables interactives)
+
+## Utilisation
+
+1. Installez et activez le plugin
+2. Accédez à "UP Scripts" dans le menu d'administration
+3. Gérez vos scripts (ajout, modification, suppression)
+4. Utilisez `wp_enqueue_script()` dans votre thème avec les handles configurés
+
+## Exemple d'utilisation
+
+```php
+// Dans votre thème ou plugin
+wp_enqueue_script('gsap'); // Charge GSAP
+wp_enqueue_script('slick'); // Charge Slick avec jQuery automatiquement
+```
+
+## Notes
+
+- Les dépendances doivent être séparées par des virgules
+- Les scripts sont automatiquement enregistrés mais pas chargés
+- Utilisez wp_enqueue_script() pour charger les scripts nécessaires
