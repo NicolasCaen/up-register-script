@@ -19,42 +19,66 @@ class UpRegisterScript {
             'src' => 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js',
             'deps' => [],
             'ver' => '3.12.2',
-            'in_footer' => true
+            'in_footer' => true,
+            'type' => 'js',
+            'load_front' => false,
+            'load_admin' => false,
+            'load_editor' => false
         ],
         'scrolltrigger' => [
             'handle' => 'scrolltrigger',
             'src' => 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js',
             'deps' => ['gsap'],
             'ver' => '3.12.2',
-            'in_footer' => true
+            'in_footer' => true,
+            'type' => 'js',
+            'load_front' => false,
+            'load_admin' => false,
+            'load_editor' => false
         ],
         'aos' => [
             'handle' => 'aos',
             'src' => 'https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js',
             'deps' => [],
             'ver' => '2.3.4',
-            'in_footer' => true
+            'in_footer' => true,
+            'type' => 'js',
+            'load_front' => false,
+            'load_admin' => false,
+            'load_editor' => false
         ],
         'slick' => [
             'handle' => 'slick',
             'src' => 'https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.js',
             'deps' => ['jquery'],
             'ver' => '1.8.1',
-            'in_footer' => true
+            'in_footer' => true,
+            'type' => 'js',
+            'load_front' => false,
+            'load_admin' => false,
+            'load_editor' => false
         ],
         'fancybox' => [
             'handle' => 'fancybox',
             'src' => 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js',
             'deps' => ['jquery'],
             'ver' => '3.5.7',
-            'in_footer' => true
+            'in_footer' => true,
+            'type' => 'js',
+            'load_front' => false,
+            'load_admin' => false,
+            'load_editor' => false
         ],
         'datatables' => [
             'handle' => 'datatables',
             'src' => 'https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js',
             'deps' => ['jquery'],
             'ver' => '1.13.7',
-            'in_footer' => true
+            'in_footer' => true,
+            'type' => 'js',
+            'load_front' => false,
+            'load_admin' => false,
+            'load_editor' => false
         ]
     ];
 
@@ -110,15 +134,42 @@ class UpRegisterScript {
 
     public function registerScripts() {
         $scripts = get_option('up_register_scripts', $this->default_scripts);
+        $is_admin = is_admin();
+        $is_editor = defined('IFRAME_REQUEST') && IFRAME_REQUEST;
         
         foreach ($scripts as $script) {
-            wp_register_script(
-                $script['handle'],
-                $script['src'],
-                $script['deps'],
-                $script['ver'],
-                $script['in_footer']
-            );
+            // Déterminer si le script doit être chargé
+            $should_load = false;
+            if (!$is_admin && !empty($script['load_front'])) {
+                $should_load = true;
+            } elseif ($is_admin && !empty($script['load_admin'])) {
+                $should_load = true;
+            } elseif ($is_editor && !empty($script['load_editor'])) {
+                $should_load = true;
+            }
+
+            if ($script['type'] === 'js') {
+                wp_register_script(
+                    $script['handle'],
+                    $script['src'],
+                    $script['deps'],
+                    $script['ver'],
+                    $script['in_footer']
+                );
+                if ($should_load) {
+                    wp_enqueue_script($script['handle']);
+                }
+            } else {
+                wp_register_style(
+                    $script['handle'],
+                    $script['src'],
+                    $script['deps'],
+                    $script['ver']
+                );
+                if ($should_load) {
+                    wp_enqueue_style($script['handle']);
+                }
+            }
         }
     }
 
@@ -159,11 +210,12 @@ class UpRegisterScript {
                         <thead>
                             <tr>
                                 <th>Handle</th>
-                                <th>Source</th>
                                 <th>Type</th>
+                                <th>Source</th>
                                 <th>Version</th>
                                 <th>Dépendances</th>
-                                <th>Footer</th>
+                                <th>Position</th>
+                                <th>Chargement</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -171,6 +223,7 @@ class UpRegisterScript {
                             <?php foreach ($scripts as $key => $script) : 
                                 $is_file = isset($script['is_file']) && $script['is_file'];
                                 $local_path = isset($script['local_path']) ? $script['local_path'] : '';
+                                $type = isset($script['type']) ? $script['type'] : 'js';
                             ?>
                                 <tr>
                                     <td>
@@ -188,7 +241,7 @@ class UpRegisterScript {
                                             <input type="file" 
                                                    class="script-file <?php echo !$is_file ? 'hidden' : ''; ?>"
                                                    name="script_file_<?php echo esc_attr($key); ?>"
-                                                   accept=".js">
+                                                   accept=".js,.css">
                                             <input type="hidden" 
                                                    name="up_register_scripts[<?php echo esc_attr($key); ?>][local_path]"
                                                    value="<?php echo esc_attr($local_path); ?>">
@@ -199,6 +252,12 @@ class UpRegisterScript {
                                                 class="source-type">
                                             <option value="0" <?php selected(!$is_file); ?>>URL</option>
                                             <option value="1" <?php selected($is_file); ?>>Fichier</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="up_register_scripts[<?php echo esc_attr($key); ?>][type]" class="script-type">
+                                            <option value="js" <?php selected($type, 'js'); ?>>JavaScript</option>
+                                            <option value="css" <?php selected($type, 'css'); ?>>CSS</option>
                                         </select>
                                     </td>
                                     <td>
@@ -215,15 +274,39 @@ class UpRegisterScript {
                                                ?>"
                                                placeholder="jquery,gsap,...">
                                     </td>
-                                    <td>
+                                    <td class="js-only <?php echo $type === 'css' ? 'hidden' : ''; ?>">
                                         <input type="checkbox" 
                                                name="up_register_scripts[<?php echo esc_attr($key); ?>][in_footer]" 
                                                value="1"
                                                <?php checked(isset($script['in_footer']) ? $script['in_footer'] : true); ?>>
                                     </td>
                                     <td>
-                                        <button type="button" class="button delete-script" 
-                                                data-key="<?php echo esc_attr($key); ?>">
+                                        <div class="load-options">
+                                            <label>
+                                                <input type="checkbox" 
+                                                       name="up_register_scripts[<?php echo esc_attr($key); ?>][load_front]" 
+                                                       value="1"
+                                                       <?php checked(!empty($script['load_front'])); ?>>
+                                                Front
+                                            </label><br>
+                                            <label>
+                                                <input type="checkbox" 
+                                                       name="up_register_scripts[<?php echo esc_attr($key); ?>][load_admin]" 
+                                                       value="1"
+                                                       <?php checked(!empty($script['load_admin'])); ?>>
+                                                Admin
+                                            </label><br>
+                                            <label>
+                                                <input type="checkbox" 
+                                                       name="up_register_scripts[<?php echo esc_attr($key); ?>][load_editor]" 
+                                                       value="1"
+                                                       <?php checked(!empty($script['load_editor'])); ?>>
+                                                Éditeur
+                                            </label>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="button delete-script">
                                             <?php _e('Supprimer', 'up-register-script'); ?>
                                         </button>
                                     </td>
@@ -314,6 +397,12 @@ class UpRegisterScript {
                                 <option value="1">Fichier</option>
                             </select>
                         </td>
+                        <td>
+                            <select name="up_register_scripts[new_${timestamp}][type]" class="script-type">
+                                <option value="js">JavaScript</option>
+                                <option value="css">CSS</option>
+                            </select>
+                        </td>
                         <td><input type="text" name="up_register_scripts[new_${timestamp}][ver]" value=""></td>
                         <td><input type="text" name="up_register_scripts[new_${timestamp}][deps]" value="" placeholder="jquery,gsap,..."></td>
                         <td><input type="checkbox" name="up_register_scripts[new_${timestamp}][in_footer]" checked></td>
@@ -358,21 +447,71 @@ class UpRegisterScript {
         
         $scripts = get_option('up_register_scripts', $this->default_scripts);
         $php = "<?php\n\n";
-        $php .= "function register_custom_scripts() {\n";
         
+        // Fonction pour enregistrer tous les scripts/styles
+        $php .= "function register_custom_assets() {\n";
         foreach ($scripts as $script) {
             $deps = implode("', '", $script['deps']);
             $deps = !empty($deps) ? "array('" . $deps . "')" : "array()";
             
-            if (isset($script['is_file']) && $script['is_file']) {
-                $php .= "    wp_register_script('{$script['handle']}', get_stylesheet_directory_uri() . '{$script['local_path']}', {$deps}, '{$script['ver']}', " . ($script['in_footer'] ? 'true' : 'false') . ");\n";
+            if ($script['type'] === 'js') {
+                if (isset($script['is_file']) && $script['is_file']) {
+                    $php .= "    wp_register_script('{$script['handle']}', get_stylesheet_directory_uri() . '{$script['local_path']}', {$deps}, '{$script['ver']}', " . ($script['in_footer'] ? 'true' : 'false') . ");\n";
+                } else {
+                    $php .= "    wp_register_script('{$script['handle']}', '{$script['src']}', {$deps}, '{$script['ver']}', " . ($script['in_footer'] ? 'true' : 'false') . ");\n";
+                }
             } else {
-                $php .= "    wp_register_script('{$script['handle']}', '{$script['src']}', {$deps}, '{$script['ver']}', " . ($script['in_footer'] ? 'true' : 'false') . ");\n";
+                if (isset($script['is_file']) && $script['is_file']) {
+                    $php .= "    wp_register_style('{$script['handle']}', get_stylesheet_directory_uri() . '{$script['local_path']}', {$deps}, '{$script['ver']}');\n";
+                } else {
+                    $php .= "    wp_register_style('{$script['handle']}', '{$script['src']}', {$deps}, '{$script['ver']}');\n";
+                }
             }
         }
-        
         $php .= "}\n";
-        $php .= "add_action('wp_enqueue_scripts', 'register_custom_scripts');\n";
+        $php .= "add_action('init', 'register_custom_assets');\n\n";
+        
+        // Fonction pour le front-end
+        $php .= "function enqueue_custom_front_assets() {\n";
+        foreach ($scripts as $script) {
+            if (!empty($script['load_front'])) {
+                if ($script['type'] === 'js') {
+                    $php .= "    wp_enqueue_script('{$script['handle']}');\n";
+                } else {
+                    $php .= "    wp_enqueue_style('{$script['handle']}');\n";
+                }
+            }
+        }
+        $php .= "}\n";
+        $php .= "add_action('wp_enqueue_scripts', 'enqueue_custom_front_assets');\n\n";
+        
+        // Fonction pour l'admin
+        $php .= "function enqueue_custom_admin_assets() {\n";
+        foreach ($scripts as $script) {
+            if (!empty($script['load_admin'])) {
+                if ($script['type'] === 'js') {
+                    $php .= "    wp_enqueue_script('{$script['handle']}');\n";
+                } else {
+                    $php .= "    wp_enqueue_style('{$script['handle']}');\n";
+                }
+            }
+        }
+        $php .= "}\n";
+        $php .= "add_action('admin_enqueue_scripts', 'enqueue_custom_admin_assets');\n\n";
+        
+        // Fonction pour l'éditeur
+        $php .= "function enqueue_custom_editor_assets() {\n";
+        foreach ($scripts as $script) {
+            if (!empty($script['load_editor'])) {
+                if ($script['type'] === 'js') {
+                    $php .= "    wp_enqueue_script('{$script['handle']}');\n";
+                } else {
+                    $php .= "    wp_enqueue_style('{$script['handle']}');\n";
+                }
+            }
+        }
+        $php .= "}\n";
+        $php .= "add_action('enqueue_block_editor_assets', 'enqueue_custom_editor_assets');\n";
         
         echo $php;
         wp_die();
@@ -453,9 +592,14 @@ class UpRegisterScript {
                     [],
                 'in_footer' => isset($script['in_footer']) ? true : false,
                 'is_file' => isset($script['is_file']) ? (bool)$script['is_file'] : false,
+                'type' => in_array($script['type'], ['js', 'css']) ? $script['type'] : 'js',
                 'local_path' => isset($script['local_path']) ? 
                     sanitize_text_field($script['local_path']) : 
-                    ''
+                    '',
+                // Ajout des options de chargement
+                'load_front' => isset($script['load_front']) ? true : false,
+                'load_admin' => isset($script['load_admin']) ? true : false,
+                'load_editor' => isset($script['load_editor']) ? true : false
             ];
         }
 
