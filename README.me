@@ -1,41 +1,86 @@
 # UP Register Script
 
-Plugin WordPress pour gérer facilement l'enregistrement et la gestion des scripts JavaScript.
+Plugin WordPress pour gérer facilement les scripts et styles.
 
 ## Fonctionnalités
 
-- Interface d'administration pour gérer les scripts
-- Scripts pré-configurés (GSAP, AOS, Slick, Fancybox, DataTables, etc.)
-- Gestion des dépendances entre scripts
-- Ajout/Suppression/Modification de scripts
-- Chargement conditionnel dans le header ou footer
+### Gestion des scripts et styles
+- Interface d'administration pour gérer les scripts/styles
+- Ajout/Suppression de scripts
+- Réorganisation par drag & drop
+- Support des fichiers locaux et URLs externes
+- Gestion des dépendances
+- Gestion des versions
+- Position header/footer pour les scripts
+- Téléchargement automatique des CDN en local
 
-## Scripts pré-configurés
+### Options de chargement
+- Ne pas charger
+- Front uniquement
+- Admin uniquement
+- Front & Admin
+- Éditeur uniquement
 
-- GSAP (Animation)
-- ScrollTrigger (Extension GSAP)
-- AOS (Animate On Scroll)
-- Slick (Carousel)
-- Fancybox (Lightbox)
-- DataTables (Tables interactives)
+### Paramètres globaux
+- Activation/désactivation du chargement automatique
+- Option de téléchargement automatique des CDN
+- Configuration du dossier de stockage local
+
+### Export
+- Export en PHP (fonctions WordPress prêtes à l'emploi)
+- Export en JSON
+- Conservation des paramètres de chargement
+- Génération de code optimisé
+
+### Sécurité
+- Création automatique des dossiers nécessaires
+- Protection des dossiers (index.php, .htaccess)
+- Vérification des permissions
+- Sanitization des données
+- Vérification des nonces
+
+### Interface
+- Onglets (Scripts, Export, Paramètres)
+- Tableau responsive
+- Drag & drop pour réorganiser
+- Affichage des URLs locales et originales
+- Styles optimisés pour l'administration
+- Messages d'erreur et de succès
+
+### Fonctionnalités techniques
+- Gestion des fichiers locaux
+- Support multisite
+- Rétrocompatibilité
+- Réinitialisation aux valeurs par défaut
+- Debug mode pour les administrateurs
+
+## Installation
+
+1. Téléchargez le plugin
+2. Activez-le dans WordPress
+3. Accédez à la configuration via le menu "UP Register Script"
 
 ## Utilisation
 
-1. Installez et activez le plugin
-2. Accédez à "UP Scripts" dans le menu d'administration
-3. Gérez vos scripts (ajout, modification, suppression)
-4. Utilisez `wp_enqueue_script()` dans votre thème avec les handles configurés
+### Interface d'administration
+- Ajoutez vos scripts via le bouton "Ajouter un script"
+- Configurez les options de chargement
+- Réorganisez l'ordre avec le drag & drop
+- Sauvegardez vos modifications
 
-## Exemple d'utilisation
+### Paramètres
+- Activez/désactivez le chargement automatique
+- Configurez le téléchargement des CDN
+- Définissez le dossier de stockage
 
-```php
-// Dans votre thème ou plugin
-wp_enqueue_script('gsap'); // Charge GSAP
-wp_enqueue_script('slick'); // Charge Slick avec jQuery automatiquement
-```
+### Export
+- Exportez en PHP pour une intégration dans votre thème
+- Exportez en JSON pour une sauvegarde ou migration
 
-## Notes
+## Support
 
-- Les dépendances doivent être séparées par des virgules
-- Les scripts sont automatiquement enregistrés mais pas chargés
-- Utilisez wp_enqueue_script() pour charger les scripts nécessaires
+Pour toute question ou suggestion, veuillez ouvrir une issue sur GitHub.
+
+## Licence
+
+Ce plugin est sous licence GPL v2 ou ultérieure.
