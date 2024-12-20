@@ -75,11 +75,9 @@ class UpRegisterScript {
         add_action('wp_enqueue_scripts', [$this, 'registerScripts']);
         add_action('wp_ajax_export_scripts_php', [$this, 'exportScriptsPhp']);
         add_action('wp_ajax_export_scripts_json', [$this, 'exportScriptsJson']);
+        add_action('admin_post_reset_scripts', [$this, 'resetScripts']);
         
         register_activation_hook(__FILE__, [$this, 'activate']);
-        
-        // Ajouter l'action pour la réinitialisation
-        add_action('admin_post_reset_scripts', [$this, 'resetScripts']);
     }
 
     public function activate() {
@@ -101,7 +99,13 @@ class UpRegisterScript {
     }
 
     public function registerSettings() {
-        register_setting('up_register_script_settings', 'up_register_scripts');
+        register_setting(
+            'up_register_script_settings', 
+            'up_register_scripts',
+            [
+                'sanitize_callback' => [$this, 'sanitizeScripts']
+            ]
+        );
     }
 
     public function registerScripts() {
@@ -205,13 +209,17 @@ class UpRegisterScript {
                                     <td>
                                         <input type="text" 
                                                name="up_register_scripts[<?php echo esc_attr($key); ?>][deps]" 
-                                               value="<?php echo esc_attr(implode(',', $script['deps'])); ?>"
+                                               value="<?php 
+                                                   $deps = isset($script['deps']) ? $script['deps'] : array();
+                                                   echo is_array($deps) ? esc_attr(implode(',', $deps)) : '';
+                                               ?>"
                                                placeholder="jquery,gsap,...">
                                     </td>
                                     <td>
                                         <input type="checkbox" 
                                                name="up_register_scripts[<?php echo esc_attr($key); ?>][in_footer]" 
-                                               <?php checked($script['in_footer']); ?>>
+                                               value="1"
+                                               <?php checked(isset($script['in_footer']) ? $script['in_footer'] : true); ?>>
                                     </td>
                                     <td>
                                         <button type="button" class="button delete-script" 
@@ -421,6 +429,37 @@ class UpRegisterScript {
             admin_url('admin.php')
         ));
         exit;
+    }
+
+    public function sanitizeScripts($input) {
+        if (!is_array($input)) {
+            return $this->default_scripts;
+        }
+
+        $sanitized = [];
+        
+        foreach ($input as $key => $script) {
+            // Vérifier les champs requis
+            if (empty($script['handle']) || (empty($script['src']) && empty($script['local_path']))) {
+                continue;
+            }
+
+            $sanitized[$key] = [
+                'handle' => sanitize_text_field($script['handle']),
+                'src' => esc_url_raw($script['src']),
+                'ver' => sanitize_text_field($script['ver']),
+                'deps' => !empty($script['deps']) ? 
+                    array_map('sanitize_text_field', explode(',', $script['deps'])) : 
+                    [],
+                'in_footer' => isset($script['in_footer']) ? true : false,
+                'is_file' => isset($script['is_file']) ? (bool)$script['is_file'] : false,
+                'local_path' => isset($script['local_path']) ? 
+                    sanitize_text_field($script['local_path']) : 
+                    ''
+            ];
+        }
+
+        return $sanitized;
     }
 }
 
