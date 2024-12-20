@@ -13,136 +13,46 @@ if (!defined('ABSPATH')) {
 
 class UpRegisterScript {
     private static $instance = null;
-    private $default_scripts = [
-        'gsap' => [
-            'handle' => 'gsap',
-            'src' => 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js',
-            'deps' => [],
-            'ver' => '3.12.2',
-            'in_footer' => true,
-            'type' => 'js',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ],
-        'scrolltrigger' => [
-            'handle' => 'scrolltrigger',
-            'src' => 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js',
-            'deps' => ['gsap'],
-            'ver' => '3.12.2',
-            'in_footer' => true,
-            'type' => 'js',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ],
-        'aos' => [
-            'handle' => 'aos',
-            'src' => 'https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js',
-            'deps' => [],
-            'ver' => '2.3.4',
-            'in_footer' => true,
-            'type' => 'js',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ],
-        'aos-style' => [
-            'handle' => 'aos',
-            'src' => 'https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css',
-            'deps' => [],
-            'ver' => '2.3.4',
-            'type' => 'css',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ],
-        'slick' => [
-            'handle' => 'slick',
-            'src' => 'https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.js',
-            'deps' => ['jquery'],
-            'ver' => '1.8.1',
-            'in_footer' => true,
-            'type' => 'js',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ],
-        'slick-style' => [
-            'handle' => 'slick',
-            'src' => 'https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.css',
-            'deps' => [],
-            'ver' => '1.8.1',
-            'type' => 'css',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ],
-        'slick-theme' => [
-            'handle' => 'slick-theme',
-            'src' => 'https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick-theme.min.css',
-            'deps' => ['slick'],
-            'ver' => '1.8.1',
-            'type' => 'css',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ],
-        'fancybox' => [
-            'handle' => 'fancybox',
-            'src' => 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js',
-            'deps' => ['jquery'],
-            'ver' => '3.5.7',
-            'in_footer' => true,
-            'type' => 'js',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ],
-        'fancybox-style' => [
-            'handle' => 'fancybox',
-            'src' => 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css',
-            'deps' => [],
-            'ver' => '3.5.7',
-            'type' => 'css',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ],
-        'datatables' => [
-            'handle' => 'datatables',
-            'src' => 'https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js',
-            'deps' => ['jquery'],
-            'ver' => '1.13.7',
-            'in_footer' => true,
-            'type' => 'js',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ],
-        'datatables-style' => [
-            'handle' => 'datatables',
-            'src' => 'https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css',
-            'deps' => [],
-            'ver' => '1.13.7',
-            'type' => 'css',
-            'load_front' => false,
-            'load_admin' => false,
-            'load_editor' => false
-        ]
-    ];
+    private $scripts_directory;
+    private $default_scripts;
+
+    public function __construct() {
+        $this->scripts_directory = plugin_dir_path(__FILE__) . 'includes/scripts/';
+        $this->default_scripts = $this->load_all_scripts();
+        
+        add_action('admin_enqueue_scripts', [$this, 'enqueueAdminScripts']);
+        $this->init();
+    }
+
+    private function load_all_scripts() {
+        $scripts = [];
+        $this->scan_directory_for_configs($this->scripts_directory, $scripts);
+        return $scripts;
+    }
+
+    private function scan_directory_for_configs($directory, &$scripts) {
+        $items = glob($directory . '/*');
+        
+        foreach ($items as $item) {
+            if (is_dir($item)) {
+                // Cherche un fichier config.php dans ce dossier
+                if (file_exists($item . '/config.php')) {
+                    $script_config = include $item . '/config.php';
+                    if (is_array($script_config)) {
+                        $scripts = array_merge($scripts, $script_config);
+                    }
+                }
+                // Continue la recherche dans les sous-dossiers
+                $this->scan_directory_for_configs($item, $scripts);
+            }
+        }
+    }
 
     public static function getInstance() {
         if (self::$instance === null) {
             self::$instance = new self();
         }
         return self::$instance;
-    }
-
-    public function __construct() {
-        $this->init();
-        // Ajouter jQuery UI
-        add_action('admin_enqueue_scripts', [$this, 'enqueueAdminScripts']);
     }
 
     public function enqueueAdminScripts($hook) {

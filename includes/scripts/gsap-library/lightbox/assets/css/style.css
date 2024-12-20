@@ -1,0 +1,107 @@
+.up-gsap-lightbox {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: none;
+  }
+  
+  .up-gsap-lightbox.active {
+    display: block;
+  }
+  
+  .up-gsap-lightbox__overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+  }
+  
+  .up-gsap-lightbox__content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-align: center;
+        -ms-flex-align: center;
+            align-items: center;
+    -webkit-box-pack: center;
+        -ms-flex-pack: center;
+            justify-content: center;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+        -ms-flex-direction: column;
+            flex-direction: column;
+  }
+  
+  .up-gsap-lightbox__media-container {
+    position: relative;
+    max-width: 90%;
+    max-height: 90vh;
+    margin: 0 auto;
+  }
+  .up-gsap-lightbox__media-container img {
+    max-width: 100%;
+    max-height: 100%;
+  }
+  
+  .up-gsap-lightbox__media {
+    max-width: 100%;
+    max-height: 90vh;
+    -o-object-fit: contain;
+       object-fit: contain;
+  }
+  
+  .up-gsap-lightbox__caption {
+    color: #fff;
+    padding: 1rem;
+    text-align: center;
+    max-width: 80%;
+    margin: 1rem auto 0;
+  }
+  
+  .up-gsap-lightbox__close,
+  .up-gsap-lightbox__prev,
+  .up-gsap-lightbox__next {
+    position: absolute;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 2rem;
+    cursor: pointer;
+    padding: 1rem;
+    z-index: 1010;
+    -webkit-transition: opacity 0.3s;
+    transition: opacity 0.3s;
+  }
+  
+  .up-gsap-lightbox__close:hover,
+  .up-gsap-lightbox__prev:hover,
+  .up-gsap-lightbox__next:hover {
+    opacity: 0.7;
+  }
+  
+  .up-gsap-lightbox__close {
+    top: 1rem;
+    right: 1rem;
+  }
+  
+  .up-gsap-lightbox__prev {
+    left: 1rem;
+    top: 50%;
+    -webkit-transform: translateY(-50%);
+            transform: translateY(-50%);
+  }
+  
+  .up-gsap-lightbox__next {
+    right: 1rem;
+    top: 50%;
+    -webkit-transform: translateY(-50%);
+            transform: translateY(-50%);
+  }
